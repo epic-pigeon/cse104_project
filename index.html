@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="math.js"></script>
+    <script src="engine.js"></script>
+    <script>
+        function resize() {
+            window.game.width = window.innerWidth;
+            window.game.height = window.innerHeight;
+        }
+        window.onresize = resize;
+        window.onload = function () {
+            resize();
+            display = new CanvasDisplay(window.game);
+            engine = new MyEngine(display);
+            engine.start();
+        }
+    </script>
+</head>
+<body>
+<canvas id="game" style="position: absolute; left: 0; top: 0; background-color: black"></canvas>
+</body>
+</html>
