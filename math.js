@@ -4,6 +4,34 @@ function Vec3(x, y, z) {
     this.y = y;
     this.z = z;
 }
+Vec3.prototype.plus = function (other) {
+    return Vec3(this.x + other.x, this.y + other.y, this.z + other.z);
+}
+Vec3.prototype.negate = function () {
+    return Vec3(-this.x, -this.y, -this.z);
+}
+Vec3.prototype.minus = function (other) {
+    return this.plus(other.negate());
+}
+Vec3.prototype.crossProduct = function (other) {
+    return Vec3(
+        this.y * other.z - this.z * other.y,
+        this.z * other.x - this.x * other.z,
+        this.x * other.y - this.y * other.x
+    );
+}
+Vec3.prototype.dotProduct = function (other) {
+    return this.x * other.x + this.y * other.y + this.z * other.z;
+}
+Vec3.prototype.multiply = function (num) {
+    return Vec3(this.x * num, this.y * num, this.z * num);
+}
+Vec3.prototype.length = function () {
+    return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
+}
+Vec3.prototype.normalize = function () {
+    return this.multiply(1 / this.length());
+}
 
 function Vec4(a1, a2, a3, a4) {
     if (!(this instanceof Vec4)) return new Vec4(...arguments); // allows for Vec3(x, y, z) syntax
@@ -18,12 +46,6 @@ function Triangle(v1, v2, v3) {
     this.v1 = v1;
     this.v2 = v2;
     this.v3 = v3;
-}
-
-function Mesh(arr) {
-    if (!(this instanceof Mesh)) return new Mesh(...arguments);
-    if (!Array.isArray(arr)) arr = [...arguments];
-    this.triangles = arr;
 }
 
 function Matrix4x4(arr) {
