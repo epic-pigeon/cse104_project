@@ -32,9 +32,21 @@ Vec3.prototype.length = function () {
 Vec3.prototype.normalize = function () {
     return this.multiply(1 / this.length());
 }
+Vec3.prototype.toAngle = function () {
+    let sinX = this.z;
+    let sinY = this.y / Math.sqrt(1 - sinX*sinX);
+    return {x: Math.asin(sinX), y: Math.asin(sinY)};
+}
+Vec3.fromAngle = function (x, y) {
+    return Vec3(
+        Math.cos(y) * Math.cos(x),
+        Math.sin(y) * Math.cos(x),
+        Math.sin(x)
+    );
+}
 
 function Vec4(a1, a2, a3, a4) {
-    if (!(this instanceof Vec4)) return new Vec4(...arguments); // allows for Vec3(x, y, z) syntax
+    if (!(this instanceof Vec4)) return new Vec4(...arguments);
     this.a1 = a1;
     this.a2 = a2;
     this.a3 = a3;
@@ -52,11 +64,39 @@ function Matrix4x4(arr) {
     if (!(this instanceof Matrix4x4)) return new Matrix4x4(...arguments);
     this.elements = [...arguments];
 }
+
 Matrix4x4.prototype.multiplyVector = function (vec4) {
     let a1 = vec4.a1 * this.elements[0][0] + vec4.a2 * this.elements[1][0] + vec4.a3 * this.elements[2][0] + vec4.a4 * this.elements[3][0];
     let a2 = vec4.a1 * this.elements[0][1] + vec4.a2 * this.elements[1][1] + vec4.a3 * this.elements[2][1] + vec4.a4 * this.elements[3][1];
     let a3 = vec4.a1 * this.elements[0][2] + vec4.a2 * this.elements[1][2] + vec4.a3 * this.elements[2][2] + vec4.a4 * this.elements[3][2];
     let a4 = vec4.a1 * this.elements[0][3] + vec4.a2 * this.elements[1][3] + vec4.a3 * this.elements[2][3] + vec4.a4 * this.elements[3][3];
     return Vec4(a1, a2, a3, a4);
+}
+
+Matrix4x4.rotationMatrixX = function (angle) {
+    return new Matrix4x4(
+        [1, 0,                0,               0],
+        [0, Math.cos(angle),  Math.sin(angle), 0],
+        [0, -Math.sin(angle), Math.cos(angle), 0],
+        [0, 0,                0,               1]
+    );
+}
+
+Matrix4x4.rotationMatrixY = function (angle) {
+    return new Matrix4x4(
+        [Math.cos(angle),  0, Math.sin(angle), 0],
+        [0,                1, 0,               0],
+        [-Math.sin(angle), 0, Math.cos(angle), 0],
+        [0,                0, 0,               1]
+    );
+}
+
+Matrix4x4.rotationMatrixZ = function (angle) {
+    return new Matrix4x4(
+        [Math.cos(angle),  Math.sin(angle), 0, 0],
+        [-Math.sin(angle), Math.cos(angle), 0, 0],
+        [0,                0,               1, 0],
+        [0,                0,               0, 1]
+    );
 }
 

@@ -54,8 +54,8 @@ Mesh.fromUint8Array = function (uint8array) {
     function getStringUntilNewline() {
         let result = "";
         while (ptr < uint8array.length
-            && uint8array[ptr] !== 0x0A /* '\n' */
-            && uint8array[ptr] !== 0x0D /* '\r' */) {
+        && uint8array[ptr] !== 0x0A /* '\n' */
+        && uint8array[ptr] !== 0x0D /* '\r' */) {
             result += String.fromCharCode(uint8array[ptr]);
             ptr++;
         }
@@ -158,26 +158,36 @@ class CanvasDisplay extends IDisplay {
 class BaseEngine {
     constructor(display) {
         this.display = display;
-        this.keyState = [];
+        this.keyState = {};
         let time = 0;
-        const update = t => {
+        const __update = t => {
             if (t > 0) {
                 let d = t - time;
                 this.update(d / 1000);
                 time = t;
+                this.mouseMovementX = 0;
+                this.mouseMovementY = 0;
             }
-            this.handler = window.requestAnimationFrame(update);
+            this.handler = window.requestAnimationFrame(__update);
         }
         this.start = async () => {
             let res = this.init();
             if (res instanceof Promise) await res;
             window.onkeydown = e => {
-                this.keyState[e.key] = true;
+                this.keyState[e.code] = true;
             }
             window.onkeyup = e => {
-                delete this.keyState[e.key];
+                delete this.keyState[e.code];
             }
-            update(0);
+            __update(0);
+        }
+        this.mouseMovementX = 0;
+        this.mouseMovementY = 0;
+        window.onmousemove = e => {
+            let d = this.display.getDimensions();
+            let m = Math.min(d.height, d.width)
+            this.mouseMovementX += e.movementX / m;
+            this.mouseMovementY += e.movementY / m;
         }
     }
     init() {
@@ -199,6 +209,7 @@ class BaseEngine {
 class Camera {
     constructor(options) {
         this.location = options.location;
+        this.direction = options.direction || Vec3(0, 0, 1)
     }
 }
 
@@ -249,7 +260,6 @@ class Engine3D extends BaseEngine {
     }
     init() {
         this.projectionMatrix = this.buildProjectionMatrix();
-        this.camera = new Camera({ location: Vec3(0, 0, 0) });
     }
     multiplyMatrix(vec3, matrix) {
         let res = matrix.multiplyVector(Vec4(vec3.x, vec3.y, vec3.z, 1));
@@ -284,6 +294,9 @@ class Engine3D extends BaseEngine {
             let z2 = s2.triangle.v1.z + s2.triangle.v2.z + s2.triangle.v3.z;
             return z2 - z1;
         });
+        let {x, y} = this.camera.direction.toAngle();
+        let mX = Matrix4x4.rotationMatrixX(x);
+        let mY = Matrix4x4.rotationMatrixY(y);
         for (let surface of toDraw) {
             let triangle = surface.triangle,
                 line1 = triangle.v2.minus(triangle.v1), line2 = triangle.v3.minus(triangle.v1),
@@ -293,10 +306,20 @@ class Engine3D extends BaseEngine {
                 let c = lightSource.getLightColor(triangle.v1.minus(lightSource.location), normal.normalize());
                 lightColor = lightColor.plus(c);
             }
+            let translated = Triangle(
+                triangle.v1.minus(this.camera.location),
+                triangle.v2.minus(this.camera.location),
+                triangle.v3.minus(this.camera.location)
+            );
+            let rotated = Triangle(
+                this.multiplyMatrix(this.multiplyMatrix(translated.v1, mX), mY),
+                this.multiplyMatrix(this.multiplyMatrix(translated.v2, mX), mY),
+                this.multiplyMatrix(this.multiplyMatrix(translated.v3, mX), mY)
+            );
             let projected = Triangle(
-                this.multiplyMatrix(triangle.v1, this.projectionMatrix),
-                this.multiplyMatrix(triangle.v2, this.projectionMatrix),
-                this.multiplyMatrix(triangle.v3, this.projectionMatrix)
+                this.multiplyMatrix(rotated.v1, this.projectionMatrix),
+                this.multiplyMatrix(rotated.v2, this.projectionMatrix),
+                this.multiplyMatrix(rotated.v3, this.projectionMatrix)
             );
             let x1 = (projected.v1.x + 1) / 2 * width, y1 = (projected.v1.y + 1) / 2 * height;
             let x2 = (projected.v2.x + 1) / 2 * width, y2 = (projected.v2.y + 1) / 2 * height;
@@ -313,11 +336,16 @@ class MyEngine extends Engine3D {
     }
     async init() {
         super.init();
+        this.camera = new Camera({location: Vec3(-1, -1, -1), direction: Vec3(0, 0, 1)});
         this.theta = 0;
+        this.angleX = 0;
+        this.angleY = 0;
+        this.sensitivity = 10;
         this.lightSources.push(new UniformDirectionalLightSource(Vec3(0, 0, 1), Color(1, 1, 1)));
-        await fetch("starship.obj").then(r => r.arrayBuffer()).then(arr => {
-            this.cube = Mesh.fromUint8Array(new Uint8Array(arr));
-        }).catch(e => {
+        let r = await fetch("staeership.obj");
+        if (r.ok) {
+            this.cube = Mesh.fromUint8Array(new Uint8Array(await r.arrayBuffer()))
+        } else {
             this.cube = Mesh(
                 // south
                 Surface(Triangle(Vec3(0, 0, 0), Vec3(0, 1, 0), Vec3(1, 1, 0)), Color(1, 0, 0)),
@@ -343,23 +371,25 @@ class MyEngine extends Engine3D {
                 Triangle(Vec3(1, 0, 1), Vec3(0, 0, 1), Vec3(0, 0, 0)),
                 Triangle(Vec3(1, 0, 1), Vec3(0, 0, 0), Vec3(1, 0, 0)),
             );
-        });
+        }
     }
     update(delta) {
+        let movement = Vec3(
+            delta * (this.keyState["KeyD"] ? 1 : this.keyState["KeyA"] ? -1 : 0),
+            delta * (this.keyState["ControlLeft"] ? 1 : this.keyState["ShiftLeft"] ? -1 : 0),
+            delta * (this.keyState["KeyW"] ? 1 : this.keyState["KeyS"] ? -1 : 0)
+        );
+        this.camera = new Camera({
+            location: this.camera.location.plus(movement),
+            direction: Vec3.fromAngle(
+                this.angleX += this.mouseMovementX * this.sensitivity,
+                this.angleY += this.mouseMovementY * this.sensitivity
+            )
+        });
         document.title = `Game (FPS: ${1 / delta})`;
         this.theta += delta;
-        let matrixZ = new Matrix4x4(
-            [Math.cos(this.theta),  Math.sin(this.theta), 0, 0],
-            [-Math.sin(this.theta), Math.cos(this.theta), 0, 0],
-            [0,                     0,                    1, 0],
-            [0,                     0,                    0, 1]
-        );
-        let matrixX = new Matrix4x4(
-            [1, 0,                       0,                      0],
-            [0, Math.cos(this.theta/2),  Math.sin(this.theta/2), 0],
-            [0, -Math.sin(this.theta/2), Math.cos(this.theta/2), 0],
-            [0, 0,                       0,                      1]
-        );
+        let matrixZ = Matrix4x4.rotationMatrixZ(this.theta);
+        let matrixX = Matrix4x4.rotationMatrixX(this.theta / 2);
         this.meshes = [
             this.transformMesh(
                 this.transformMesh(
@@ -369,7 +399,7 @@ class MyEngine extends Engine3D {
                     ),
                     v => this.multiplyMatrix(v, matrixX)
                 ),
-                v => Vec3(v.x, v.y, v.z + 8)
+                v => Vec3(v.x, v.y, v.z + 2)
             )
         ];
         super.update(delta);
