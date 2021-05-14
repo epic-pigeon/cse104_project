@@ -100,3 +100,22 @@ Matrix4x4.rotationMatrixZ = function (angle) {
     );
 }
 
+Matrix4x4.pointAtInverse = function (pos, target, up) {
+    let newForward = target.minus(pos).normalize();
+    let a = newForward.multiply(up.dotProduct(newForward));
+    let newUp = up.minus(a).normalize();
+    let newRight = newUp.crossProduct(newForward);
+
+    return Matrix4x4(
+        [newRight.x, newUp.x, newForward.x, 0],
+        [newRight.y, newUp.y, newForward.y, 0],
+        [newRight.z, newUp.z, newForward.z, 0],
+        [
+            -(pos.x * newRight.x + pos.y * newRight.y + pos.z * newRight.z),
+            -(pos.x * newUp.x + pos.y * newUp.y + pos.z * newUp.z),
+            -(pos.x * newForward.x + pos.y * newForward.y + pos.z * newForward.z),
+            1
+        ]
+    );
+}
+

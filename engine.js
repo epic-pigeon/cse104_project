@@ -311,15 +311,10 @@ class Engine3D extends BaseEngine {
                 triangle.v2.minus(this.camera.location),
                 triangle.v3.minus(this.camera.location)
             );
-            let rotated = Triangle(
-                this.multiplyMatrix(this.multiplyMatrix(translated.v1, mX), mY),
-                this.multiplyMatrix(this.multiplyMatrix(translated.v2, mX), mY),
-                this.multiplyMatrix(this.multiplyMatrix(translated.v3, mX), mY)
-            );
             let projected = Triangle(
-                this.multiplyMatrix(rotated.v1, this.projectionMatrix),
-                this.multiplyMatrix(rotated.v2, this.projectionMatrix),
-                this.multiplyMatrix(rotated.v3, this.projectionMatrix)
+                this.multiplyMatrix(translated.v1, this.projectionMatrix),
+                this.multiplyMatrix(translated.v2, this.projectionMatrix),
+                this.multiplyMatrix(translated.v3, this.projectionMatrix)
             );
             let x1 = (projected.v1.x + 1) / 2 * width, y1 = (projected.v1.y + 1) / 2 * height;
             let x2 = (projected.v2.x + 1) / 2 * width, y2 = (projected.v2.y + 1) / 2 * height;
@@ -336,13 +331,13 @@ class MyEngine extends Engine3D {
     }
     async init() {
         super.init();
-        this.camera = new Camera({location: Vec3(-1, -1, -1), direction: Vec3(0, 0, 1)});
+        this.camera = new Camera({location: Vec3(0, 0, 0), direction: Vec3(0, 0, 1)});
         this.theta = 0;
         this.angleX = 0;
         this.angleY = 0;
         this.sensitivity = 10;
         this.lightSources.push(new UniformDirectionalLightSource(Vec3(0, 0, 1), Color(1, 1, 1)));
-        let r = await fetch("staeership.obj");
+        let r = await fetch("starship.obj");
         if (r.ok) {
             this.cube = Mesh.fromUint8Array(new Uint8Array(await r.arrayBuffer()))
         } else {
@@ -380,11 +375,7 @@ class MyEngine extends Engine3D {
             delta * (this.keyState["KeyW"] ? 1 : this.keyState["KeyS"] ? -1 : 0)
         );
         this.camera = new Camera({
-            location: this.camera.location.plus(movement),
-            direction: Vec3.fromAngle(
-                this.angleX += this.mouseMovementX * this.sensitivity,
-                this.angleY += this.mouseMovementY * this.sensitivity
-            )
+            location: this.camera.location.plus(movement.multiply(3))
         });
         document.title = `Game (FPS: ${1 / delta})`;
         this.theta += delta;
@@ -399,7 +390,7 @@ class MyEngine extends Engine3D {
                     ),
                     v => this.multiplyMatrix(v, matrixX)
                 ),
-                v => Vec3(v.x, v.y, v.z + 2)
+                v => Vec3(v.x, v.y, v.z + 3)
             )
         ];
         super.update(delta);
@@ -408,4 +399,3 @@ class MyEngine extends Engine3D {
 
     }
 }
-
