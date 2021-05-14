@@ -337,7 +337,12 @@ class MyEngine extends Engine3D {
         this.angleY = 0;
         this.sensitivity = 10;
         this.lightSources.push(new UniformDirectionalLightSource(Vec3(0, 0, 1), Color(1, 1, 1)));
-        let r = await fetch("starship.obj");
+        let r;
+        try {
+            r = await fetch("starship.obj");
+        } catch (e) {
+            r = {ok: false};
+        }
         if (r.ok) {
             this.cube = Mesh.fromUint8Array(new Uint8Array(await r.arrayBuffer()))
         } else {
